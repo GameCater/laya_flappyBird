@@ -6,11 +6,12 @@ export default class AutoMove extends Laya.Script {
     /** @prop {name: moveSpeed, type: Number, tips: "背景移动速度", default: 5} */
     public moveSpeed: number = 5;
 
+    private rgBody: Laya.RigidBody;
+
     constructor() {
         super();
     }
 
-    private rgBody: Laya.RigidBody;
     onAwake() {
         this.rgBody = this.owner.getComponent(Laya.RigidBody);
         this.rgBody.linearVelocity = new Laya.Vector2(-this.moveSpeed, 0);
@@ -19,6 +20,8 @@ export default class AutoMove extends Laya.Script {
     onEnable(): void {
         // 侦听gameover
         Laya.stage.on('gameover', this, this.handleGameover);
+
+        Laya.stage.on('gameRestart', this, this.handleGameRestart);
     }
 
     onDisable(): void {
@@ -27,5 +30,9 @@ export default class AutoMove extends Laya.Script {
     
     private handleGameover(): void {
         this.rgBody.linearVelocity = new Laya.Vector2(0, 0);
+    }
+
+    private handleGameRestart(): void {
+        this.rgBody.linearVelocity = new Laya.Vector2(-this.moveSpeed, 0);
     }
 }

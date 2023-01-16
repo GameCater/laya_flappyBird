@@ -5,7 +5,7 @@ import Column from "./Column";
 */
 export default class ColumnSpawn extends Laya.Script {
 
-    
+
 
     /** @prop {name: min, type: Number, tips: '最小生成时间间隔', default: 2000} */
     public min: number = 2000;
@@ -16,7 +16,10 @@ export default class ColumnSpawn extends Laya.Script {
     
     private timer: number = 0;
     private spawnTime: number = 2000;
-    private isGameOver = false;
+    private isGameOver = true;
+
+    // 用数组存放所有柱子
+    private columns: Laya.Sprite[] = [];
 
     constructor() {
         super();
@@ -24,10 +27,31 @@ export default class ColumnSpawn extends Laya.Script {
 
     onAwake(): void {
         Laya.stage.on('gameover', this, this.handleGameover);
+        Laya.stage.on('gameRestart', this, this.handleGameRestart);
+        Laya.stage.on('gameStart', this, this.handleGameStart);
+    }
+
+    private handleGameStart(): void {
+        this.isGameOver = false;
+    }
+
+    private handleGameRestart(): void {
+
+        this.columns.forEach(column => {
+            column.removeSelf();
+
+            // Laya.Pool.recover('Column', column);
+        });
+
+        this.columns = [];
+        this.isGameOver = false;
     }
 
     onUpdate(): void {
-        if (this.isGameOver) return;
+        if (this.isGameOver) {
+            this.timer = 0;
+            return;
+        }
 
         this.timer += Laya.timer.delta;
         if (this.timer >= this.spawnTime) {
@@ -76,6 +100,9 @@ export default class ColumnSpawn extends Laya.Script {
         // 防止重复计数
         topColumn.getComponent(Column).canAddScore = false;
         this.owner.addChild(topColumn);
+
+        this.columns.push(bottomColumn);
+        this.columns.push(topColumn);
     }
 
     private createColumnIfNotExist(): Laya.Sprite {
@@ -86,6 +113,7 @@ export default class ColumnSpawn extends Laya.Script {
 
     onDestroy(): void {
         Laya.stage.off('gameover', this, this.handleGameover);
+        Laya.stage.off('gameRestart', this, this.handleGameRestart);
         super.destroy();
     }
-}  
+}

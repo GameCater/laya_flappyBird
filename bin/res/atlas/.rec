@@ -1,4 +1,8 @@
 D .
+D audio
+R F6CD9116 fly.mp3
+R 3EBAB0C9 hit.mp3
+R 95B92C73 score.mp3
 D bird
 P E1CC64FA BirdHero_01.png
 P EABA4810 BirdHero_02.png

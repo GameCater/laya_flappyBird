@@ -12,12 +12,16 @@
         }
         onEnable() {
             Laya.stage.on('gameover', this, this.handleGameover);
+            Laya.stage.on('gameRestart', this, this.handleGameRestart);
         }
         onDisable() {
             Laya.stage.off('gameover', this, this.handleGameover);
         }
         handleGameover() {
             this.rgBody.linearVelocity = new Laya.Vector2(0, 0);
+        }
+        handleGameRestart() {
+            this.rgBody.linearVelocity = new Laya.Vector2(-this.moveSpeed, 0);
         }
     }
 
@@ -41,15 +45,30 @@
             super();
             this.flySpeed = 10;
             this.isGameover = false;
+            this.isGameStart = false;
         }
         onAwake() {
             Laya.stage.on(Laya.Event.MOUSE_DOWN, this, this.onMouseDown);
             this.self = this.owner;
+            Laya.stage.on('gameRestart', this, this.handleGameRestart);
+            this.rgBody = this.owner.getComponent(Laya.RigidBody);
+            this.rgBody.type = 'static';
+            Laya.stage.on('gameStart', this, this.handleGameStart);
+        }
+        handleGameStart() {
+            this.rgBody.type = 'dynamic';
+            this.isGameStart = true;
+        }
+        handleGameRestart() {
+            this.self.pos(247, 490);
+            this.self.rotation = 0;
+            this.self.autoAnimation = 'Idle';
+            this.isGameover = false;
         }
         onMouseDown() {
-            if (this.isGameover)
+            if (this.isGameover || !this.isGameStart)
                 return;
-            this.owner.getComponent(Laya.RigidBody).linearVelocity = new Laya.Vector2(0, -this.flySpeed);
+            this.rgBody.linearVelocity = new Laya.Vector2(0, -this.flySpeed);
             this.self.autoAnimation = 'Fly';
             this.self.loop = false;
         }
@@ -59,6 +78,8 @@
             }
         }
         onTriggerEnter(other) {
+            if (this.isGameover)
+                return;
             const target = other;
             if (target.owner.name === 'collider_top')
                 return;
@@ -101,14 +122,29 @@
             this.columnPreb = null;
             this.timer = 0;
             this.spawnTime = 2000;
-            this.isGameOver = false;
+            this.isGameOver = true;
+            this.columns = [];
         }
         onAwake() {
             Laya.stage.on('gameover', this, this.handleGameover);
+            Laya.stage.on('gameRestart', this, this.handleGameRestart);
+            Laya.stage.on('gameStart', this, this.handleGameStart);
+        }
+        handleGameStart() {
+            this.isGameOver = false;
+        }
+        handleGameRestart() {
+            this.columns.forEach(column => {
+                column.removeSelf();
+            });
+            this.columns = [];
+            this.isGameOver = false;
         }
         onUpdate() {
-            if (this.isGameOver)
+            if (this.isGameOver) {
+                this.timer = 0;
                 return;
+            }
             this.timer += Laya.timer.delta;
             if (this.timer >= this.spawnTime) {
                 this.timer = 0;
@@ -143,6 +179,8 @@
             topColumn.pos(2176, tcY);
             topColumn.getComponent(Column).canAddScore = false;
             this.owner.addChild(topColumn);
+            this.columns.push(bottomColumn);
+            this.columns.push(topColumn);
         }
         createColumnIfNotExist() {
             const temp = this.columnPreb.create();
@@ -151,6 +189,7 @@
         }
         onDestroy() {
             Laya.stage.off('gameover', this, this.handleGameover);
+            Laya.stage.off('gameRestart', this, this.handleGameRestart);
             super.destroy();
         }
     }
@@ -185,9 +224,26 @@
             super();
             this.score = 0;
             this.scoreText = `Score: ${this.score}`;
-            this.graphics.fillText(this.scoreText, 24, 50, '40px Arial', '#111', 'left');
+            this.historyScores = [];
+            this.isStart = false;
             Laya.stage.on('addScore', this, this.addScore);
             Laya.stage.on('gameover', this, this.handleGameOver);
+            let scores = Laya.LocalStorage.getItem('rank');
+            if (!scores) {
+                this.historyScores = [0, 0, 0];
+            }
+            else {
+                this.historyScores = JSON.parse(scores);
+            }
+            Laya.stage.on(Laya.Event.CLICK, this, this.startGame);
+        }
+        startGame() {
+            if (this.isStart)
+                return;
+            this.btn_start.visible = false;
+            this.graphics.fillText(this.scoreText, 24, 50, '40px Arial', '#111', 'left');
+            Laya.stage.event('gameStart');
+            this.isStart = true;
         }
         addScore() {
             this.score += 1;
@@ -195,14 +251,33 @@
             this.graphics.replaceText(this.scoreText);
         }
         handleGameOver() {
+            this.historyScores.push(this.score);
+            this.historyScores = this.historyScores.sort((a, b) => { return b - a; });
+            this.historyScores.splice(3, this.historyScores.length - 3);
+            Laya.LocalStorage.setItem('rank', JSON.stringify(this.historyScores));
             this.graphics.clear();
             Laya.Tween.from(this.box_finish, { alpha: 0 }, 500, Laya.Ease.linearIn, Laya.Handler.create(this, () => {
                 this.box_finish.visible = true;
                 this.btn_restart.on(Laya.Event.MOUSE_DOWN, this, this.handleRestart);
+                this.btn_rank.on(Laya.Event.MOUSE_DOWN, this, this.handleRank);
             }));
         }
+        handleRank() {
+            this.rank_panel.visible = true;
+            this.rank_panel.show();
+            this.historyScores = JSON.parse(Laya.LocalStorage.getItem('rank'));
+            const desc = "第一名：" + this.historyScores[0] + "分\n"
+                + "第二名：" + this.historyScores[1] + "分\n"
+                + "第三名：" + this.historyScores[2] + "分";
+            this.txt_info.text = desc;
+        }
         handleRestart() {
-            console.log('restart');
+            this.box_finish.visible = false;
+            this.btn_restart.off(Laya.Event.MOUSE_DOWN, this, this.handleRestart);
+            this.score = 0;
+            this.scoreText = `Score: ${this.score}`;
+            this.graphics.fillText(this.scoreText, 24, 50, '40px Arial', '#111', 'left');
+            this.stage.event('gameRestart');
         }
         onDestroy() {
             Laya.stage.off('addScore', this, this.addScore);

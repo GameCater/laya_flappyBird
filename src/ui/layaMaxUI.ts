@@ -22,6 +22,9 @@ export module ui {
 		public sp_bg:Laya.Sprite;
 		public btn_restart:Laya.Button;
 		public btn_rank:Laya.Button;
+		public rank_panel:Dialog;
+		public txt_info:Laya.Text;
+		public btn_start:Laya.Text;
         constructor(){ super()}
         createChildren():void {
             super.createChildren();

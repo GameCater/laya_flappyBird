@@ -13,7 +13,13 @@ export default class Column extends Laya.Script {
 
     onAwake(): void {
         this.parent = this.owner as Laya.Sprite;
+
+        // Laya.stage.on('gameRestart', this, this.handleGameRestart);
     }
+
+    // private handleGameRestart(): void {
+    //     this.parent.destroy();
+    // }
 
     onUpdate(): void {
 
